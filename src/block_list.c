@@ -13,11 +13,11 @@ void list_initialize(BlockList *list, size_t (*get_sort_key)(Block *)) {
 	list->get_sort_key = get_sort_key;
 }
 
-size_t list_find_by_key(BlockList *list, size_t key) {
+int list_find_by_key(BlockList *list, size_t key) {
 	return 0;
 }
 
-size_t list_find_by_key_or_higher(BlockList *list, size_t key) {
+int list_find_by_key_or_higher(BlockList *list, size_t key) {
 	return 0;
 }
 
