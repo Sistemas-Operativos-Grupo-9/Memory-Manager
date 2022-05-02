@@ -1,9 +1,9 @@
 #include "malloc.h"
-#include "list.h"
+#include "block_list.h"
 
 
-List free_blocks;
-List reserved_blocks;
+BlockList free_blocks;
+BlockList reserved_blocks;
 
 void *our_malloc(size_t byte_count) {
 	return (void *)4;

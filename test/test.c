@@ -2,22 +2,13 @@
 #include "malloc.h"
 #include <stdio.h>
 
-void test_simple(CuTest *tc) {
-	char *a = our_malloc(100);
-	CuAssertPtrEquals(tc, (void *)7, a);
-}
-
-CuSuite *get_suite() {
-	CuSuite *suite = CuSuiteNew();
-	SUITE_ADD_TEST(suite, test_simple);
-	return suite;
-}
+#include "test_list.h"
 
 void run_all_tests() {
 	CuString *output = CuStringNew();
 	CuSuite *suite = CuSuiteNew();
 
-	CuSuiteAddSuite(suite, get_suite());
+	CuSuiteAddSuite(suite, get_list_suite());
 
 	CuSuiteRun(suite);
 	CuSuiteSummary(suite, output);
