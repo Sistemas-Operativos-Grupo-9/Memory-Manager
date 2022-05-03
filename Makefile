@@ -8,7 +8,7 @@ SRC_OBJ=$(SRC_FILES:src/%.c=$(BUILD_DIR)/%.o)
 TEST_OBJ=$(TEST_FILES:test/%.c=$(BUILD_DIR)/test/%.o)
 CUTEST_OBJ=$(CUTEST_FILES:cutest/%.c=$(BUILD_DIR)/cutest/%.o)
 
-CFLAGS=-Iinclude -Icutest
+CFLAGS=-Iinclude -Icutest -g
 
 $(BUILD_DIR)/libmemory_manager.a: $(SRC_OBJ)
 	ar rcs $@ $^
@@ -22,7 +22,7 @@ all: $(BUILD_DIR)/libmemory_manager.a test
 test: $(BUILD_DIR)/run-test
 
 $(BUILD_DIR)/run-test: $(BUILD_DIR)/libcutest.a $(BUILD_DIR)/libmemory_manager.a $(TEST_OBJ)
-	$(CC) -o $@ $(TEST_OBJ) -L$(BUILD_DIR) -lmemory_manager -lcutest
+	$(CC) $(CFLAGS) -o $@ $(TEST_OBJ) -L$(BUILD_DIR) -lmemory_manager -lcutest
 
 
 

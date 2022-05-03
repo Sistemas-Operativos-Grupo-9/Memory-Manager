@@ -14,6 +14,9 @@ void run_all_tests() {
 	CuSuiteSummary(suite, output);
 	CuSuiteDetails(suite, output);
 	printf("%s\n", output->buffer);
+
+	CuSuiteDelete(suite);
+	CuStringDelete(output);
 }
 
 int main() {
