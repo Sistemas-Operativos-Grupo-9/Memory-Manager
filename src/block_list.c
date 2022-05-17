@@ -1,29 +1,29 @@
 #include "block_list.h"
 
-size_t block_get_size(Block *block) { return block->size; }
-void *block_get_start(Block *block) { return block->start; }
+size_t blockGetSize(Block *block) { return block->size; }
+void *blockGetStart(Block *block) { return block->start; }
 
-void list_initialize(BlockList *list, size_t (*get_sort_key)(Block *)) {
+void listInitialize(BlockList *list, size_t (*getSortKey)(Block *)) {
 	list->count = 0;
-	list->get_sort_key = get_sort_key;
+	list->getSortKey = getSortKey;
 }
 
-int list_find_by_key(BlockList *list, size_t key) {
-	int i = list_find_by_key_or_higher(list, key);
-	Block found_block = list_get_block(list, i);
-	if (i != -1 && list->get_sort_key(&found_block) == key) {
+int listFindByKey(BlockList *list, size_t key) {
+	int i = listFindByKeyOrHigher(list, key);
+	Block foundBlock = listGetBlock(list, i);
+	if (i != -1 && list->getSortKey(&foundBlock) == key) {
 		return i;
 	}
 	return -1;
 }
 
-int list_find_by_key_or_higher(BlockList *list, size_t key) {
+int listFindByKeyOrHigher(BlockList *list, size_t key) {
 	int start = 0, end = list->count - 1;
 	while (start < end) {
 		size_t middle = (start + end) / 2;
-		Block middle_block = list_get_block(list, middle);
-		size_t middle_key = list->get_sort_key(&middle_block);
-		if (middle_key < key) {
+		Block middleBlock = listGetBlock(list, middle);
+		size_t middleKey = list->getSortKey(&middleBlock);
+		if (middleKey < key) {
 			start = middle + 1;
 		} else {
 			end = middle;
@@ -35,11 +35,11 @@ int list_find_by_key_or_higher(BlockList *list, size_t key) {
 	return start;
 }
 
-Block list_get_block(BlockList *list, size_t index) {
+Block listGetBlock(BlockList *list, size_t index) {
 	return list->blocks[index];
 }
 
-void list_move_slice(BlockList *list, size_t dest, size_t source, size_t size) {
+void listMoveSlice(BlockList *list, size_t dest, size_t source, size_t size) {
 	if (source > dest)
 		for (int i = 0; i < size; i++)
 			list->blocks[dest + i] = list->blocks[source + i];
@@ -48,17 +48,15 @@ void list_move_slice(BlockList *list, size_t dest, size_t source, size_t size) {
 			list->blocks[dest + i] = list->blocks[source + i];
 }
 
-void list_add_block(BlockList *list, Block block) {
-	int insert_index =
-	    list_find_by_key_or_higher(list, list->get_sort_key(&block));
-	if (insert_index == -1) {
-		insert_index = list->count;
+void listAddBlock(BlockList *list, Block block) {
+	int insertIndex = listFindByKeyOrHigher(list, list->getSortKey(&block));
+	if (insertIndex == -1) {
+		insertIndex = list->count;
 	}
-	list_move_slice(list, insert_index + 1, insert_index,
-	                list->count - insert_index);
-	list->blocks[insert_index] = block;
+	listMoveSlice(list, insertIndex + 1, insertIndex,
+	              list->count - insertIndex);
+	list->blocks[insertIndex] = block;
 	list->count++;
 }
 
-void list_remove(BlockList *list, size_t index) {
-}
+void listRemove(BlockList *list, size_t index) {}
