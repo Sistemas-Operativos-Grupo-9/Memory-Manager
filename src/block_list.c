@@ -1,13 +1,16 @@
 #include "block_list.h"
 
 size_t blockGetSize(Block *block) { return block->size; }
-void blockSetSize(Block *block, size_t size) { block->size = size; }
+void blockInitialize(Block *block, size_t size) {
+	block->size = size;
+	block->segmentStart = (size_t)block + sizeof(Block);
+}
 // void *blockGetStart(Block *block) { return block->start; }
 
 Block *blockDivide(Block *oldBlock, size_t newBlockSize) {
 	oldBlock->size -= newBlockSize;
 	Block *newBlock = oldBlock + blockGetSize(oldBlock);
-	newBlock->size = newBlockSize;
+	blockInitialize(newBlock, newBlockSize);
 	return newBlock;
 }
 
@@ -77,3 +80,7 @@ void listRemove(BlockList *list, size_t index) {}
 bool listIsEmpty(BlockList *list) { return list->count == 0; }
 
 size_t listGetSize(BlockList *list) { return list->count; }
+
+bool blockIsValid(Block *block) {
+	return block->segmentStart == (size_t)block + sizeof(Block);
+}

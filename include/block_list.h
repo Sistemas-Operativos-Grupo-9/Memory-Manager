@@ -7,7 +7,9 @@ typedef enum { FALSE = 0, TRUE = 1 } bool; // TODO: move to a stdlib file
 
 // Each block serves as a header for a memory segment, with info about it
 typedef union block {
-	size_t size; // size of the adyacent memory segment, in blocks
+	size_t size;         // size of the adyacent memory segment, in blocks
+	size_t segmentStart; // memory address of the memory segment's start. This
+	                     // is used to check for validity of the block
 } Block;
 
 typedef struct BlockList {
@@ -17,9 +19,9 @@ typedef struct BlockList {
 } BlockList;
 
 size_t blockGetSize(Block *block);
-void blockSetSize(Block *block, size_t size);
+void blockInitialize(Block *block, size_t size);
 Block *blockDivide(Block *oldBlock, size_t newBlockSize);
-// void *blockGetStart(Block *block);
+bool blockIsValid(Block *block);
 
 void listInitialize(BlockList *list, size_t (*getSortKey)(Block *));
 

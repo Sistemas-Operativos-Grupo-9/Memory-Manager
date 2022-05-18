@@ -15,7 +15,7 @@ void memoryManagerInitialize(size_t start, size_t end) {
 	Block *firstBlock = start;
 	size_t heapBytes = end - start;
 
-	blockSetSize(firstBlock, heapBytes / sizeof(Block));
+	blockInitialize(firstBlock, heapBytes / sizeof(Block));
 
 	listInitialize(&freeList, listGetSortKey);
 	listAddBlock(&freeList, firstBlock);
@@ -63,7 +63,7 @@ void *ourMalloc(size_t bytes) {
 void ourFree(void *memPtr) {
 	Block *header = ((Block *)memPtr) - 1;
 
-	if (!blockIsValid(&free, header)) { // TODO: implement blockIsValid
+	if (!blockIsValid(header)) { // TODO: implement blockIsValid
 		//? Error
 		return;
 	}
