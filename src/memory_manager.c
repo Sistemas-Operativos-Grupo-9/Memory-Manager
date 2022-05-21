@@ -1,9 +1,9 @@
-#include "malloc.h"
+#include "memory_manager.h"
 #include "block_list.h"
 
-static BlockList freeList;
+static BlockList freeList = {0};
 
-static MemoryState internalMemState;
+static MemoryState internalMemState = {0};
 
 size_t listGetSortKey(Block *block) { return block->size; }
 
@@ -12,7 +12,7 @@ size_t listGetSortKey(Block *block) { return block->size; }
  * @param end last memory address of the heap
  */
 void memoryManagerInitialize(size_t start, size_t end) {
-	Block *firstBlock = start;
+	Block *firstBlock = (Block *)start;
 	size_t heapBytes = end - start;
 
 	blockInitialize(firstBlock, heapBytes / sizeof(Block));
@@ -50,6 +50,9 @@ void *ourMalloc(size_t bytes) {
 	}
 
 	Block *header = listGetBlock(&freeList, blockIndex);
+	if (header == NULL) {
+		return NULL;
+	}
 	if (blockGetSize(header) > mUnits) {
 		header = blockDivide(header, mUnits);
 	} else {
@@ -63,7 +66,7 @@ void *ourMalloc(size_t bytes) {
 void ourFree(void *memPtr) {
 	Block *header = ((Block *)memPtr) - 1;
 
-	if (!blockIsValid(header)) { // TODO: implement blockIsValid
+	if (!blockIsValid(header)) {
 		//? Error
 		return;
 	}

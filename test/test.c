@@ -1,14 +1,25 @@
 #include "CuTest.h"
-#include "malloc.h"
 #include <stdio.h>
 
+#include "memory_manager.h"
+#include "memory_manager_test.h"
 #include "test_list.h"
 
-void run_all_tests() {
+void runSuite(CuSuite *suiteToRun);
+
+void runAllTests() {
+	printf("Initializing tests\n");
+	runSuite(getListSuite());
+	runSuite(getMallocSuite());
+	runSuite(getFreeSuite());
+	runSuite(getMemStateSuite());
+}
+
+void runSuite(CuSuite *suiteToRun) {
 	CuString *output = CuStringNew();
 	CuSuite *suite = CuSuiteNew();
 
-	CuSuiteAddSuite(suite, get_list_suite());
+	CuSuiteAddSuite(suite, suiteToRun);
 
 	CuSuiteRun(suite);
 	CuSuiteSummary(suite, output);
@@ -20,6 +31,6 @@ void run_all_tests() {
 }
 
 int main() {
-	run_all_tests();
+	runAllTests();
 	return 0;
 }

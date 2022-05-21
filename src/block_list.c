@@ -34,6 +34,9 @@ size_t listFindByKey(BlockList *list, size_t key) {
  * @return index of the found element, -1 if no appropiate element was found
  */
 size_t listFindByKeyOrHigher(BlockList *list, size_t key) {
+	if (list->count == 0) {
+		return -1;
+	}
 	size_t start = 0, end = list->count - 1;
 	while (start < end) {
 		size_t middle = (start + end) / 2;
@@ -48,10 +51,18 @@ size_t listFindByKeyOrHigher(BlockList *list, size_t key) {
 	if (start == list->count) {
 		return -1;
 	}
+	if (list->getSortKey(listGetBlock(list, start)) < key) {
+		// this is for the case in which there is only one item on the list but
+		// its key is not greater or equal than the requested key value
+		return -1;
+	}
 	return start;
 }
 
 Block *listGetBlock(BlockList *list, size_t index) {
+	if (index < 0 || index >= list->count) {
+		return NULL;
+	}
 	return list->blocks[index];
 }
 
@@ -75,7 +86,17 @@ void listAddBlock(BlockList *list, Block *block) {
 	list->count++;
 }
 
-void listRemove(BlockList *list, size_t index) {}
+void listRemove(BlockList *list, size_t index) {
+	if (list->count == 0 || index >= list->count) {
+		return;
+	}
+	if (index == list->count - 1) {
+		list->count--;
+		return;
+	}
+	listMoveSlice(list, index, index + 1, list->count - (index + 1));
+	list->count--;
+}
 
 bool listIsEmpty(BlockList *list) { return list->count == 0; }
 

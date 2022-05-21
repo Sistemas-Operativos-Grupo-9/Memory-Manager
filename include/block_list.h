@@ -1,12 +1,11 @@
 #pragma once
+#include <stdbool.h>
 #include <stdlib.h>
 
 #define MAX_LIST_SIZE 64
 
-typedef enum { FALSE = 0, TRUE = 1 } bool; // TODO: move to a stdlib file
-
 // Each block serves as a header for a memory segment, with info about it
-typedef union block {
+typedef struct block {
 	size_t size;         // size of the adyacent memory segment, in blocks
 	size_t segmentStart; // memory address of the memory segment's start. This
 	                     // is used to check for validity of the block
