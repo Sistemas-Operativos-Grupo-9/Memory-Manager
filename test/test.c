@@ -13,6 +13,7 @@ void runAllTests() {
 	runSuite(getMallocSuite(), "Malloc Suite");
 	runSuite(getFreeSuite(), "Free suite");
 	runSuite(getMemStateSuite(), "Memory State Suite");
+	runSuite(getIntegratedSuite(), "Integrated Suite");
 }
 
 void runSuite(CuSuite *suiteToRun, char *name) {

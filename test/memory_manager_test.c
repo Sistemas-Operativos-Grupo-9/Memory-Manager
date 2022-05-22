@@ -1,6 +1,9 @@
 #include "memory_manager.h"
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <time.h>
 
 #include "memory_manager_test.h"
 
@@ -20,9 +23,87 @@
 
 // Utils
 // -----------------------------------------------------------------------
+static bool seeded = false;
+size_t getUniform(size_t max) {
+	if (!seeded) {
+		srand(time(0));
+		seeded = true;
+	}
+	return max * ((double)rand() / RAND_MAX);
+}
+
+typedef struct requestStruct {
+	void *address;
+	size_t size;
+} Request;
+
+int memcheck(void *start, int value, size_t size) {
+	int *p = (int *)start;
+	size_t i;
+
+	for (i = 0; i < size; i++, p++)
+		if (*p != value)
+			return 0;
+
+	return 1;
+}
 
 // Tests
 // -----------------------------------------------------------------------
+/* TODO:
+ *	It's difficult to calculate how many free memory is left to be allocated
+ *  because of the method that we use to allocate it (allocate multiples of
+ *	blocks in order to keep the memory aligned). So, is this OK? or should we
+ *	change the implementation to a more transparent one.
+ */
+void integratedTest(CuTest *tc) {
+	size_t heapSize = DEFAULT_HEAP_SIZE;
+	void *heap = malloc(heapSize);
+	size_t heapStart = (size_t)heap;
+	size_t heapEnd = (size_t)heap + heapSize;
+	memoryManagerInitialize(heapStart, heapEnd);
+
+	size_t maxRequests = 100;
+	Request requests[maxRequests];
+	size_t requestCounter = 0;
+	size_t requestedBytes = 0;
+	size_t maxMemoryBytes = heapSize;
+
+	// Request as many blocks as we can
+	while (requestCounter < maxRequests && maxMemoryBytes > requestedBytes) {
+		requests[requestCounter].size =
+		    getUniform(maxMemoryBytes - requestedBytes - 1) + 1;
+		requests[requestCounter].address =
+		    ourMalloc(requests[requestCounter].size);
+
+		CuAssertPtrNotNull(tc, requests[requestCounter].address);
+
+		MemoryState ms;
+		getMemoryState(&ms);
+		requestedBytes = ms.usedMemory;
+		requestCounter++;
+	}
+
+	// Set
+	size_t i;
+	for (i = 0; i < requestCounter; i++)
+		if (requests[i].address)
+			memset(requests[i].address, i, requests[i].size);
+
+	// Check
+	for (i = 0; i < requestCounter; i++)
+		if (requests[i].address)
+			CuAssertTrue(tc,
+			             memcheck(requests[i].address, i, requests[i].size));
+
+	// Free
+	for (i = 0; i < requestCounter; i++)
+		if (requests[i].address)
+			ourFree(requests[i].address);
+
+	free(heap);
+}
+
 void basicMallocTest(CuTest *tc) {
 	void *heap = malloc(DEFAULT_HEAP_SIZE);
 	size_t heapStart = (size_t)heap;
@@ -298,6 +379,12 @@ void testMalloc_InvalidUsage(CuTest *tc) {
 
 // Suites
 // -----------------------------------------------------------------------
+CuSuite *getIntegratedSuite() {
+	CuSuite *suite = CuSuiteNew();
+	SUITE_ADD_TEST(suite, integratedTest);
+	return suite;
+}
+
 CuSuite *getMallocSuite() {
 	CuSuite *suite = CuSuiteNew();
 	SUITE_ADD_TEST(suite, basicMallocTest);
