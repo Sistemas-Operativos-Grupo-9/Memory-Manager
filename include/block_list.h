@@ -9,6 +9,7 @@ typedef struct block {
 	size_t size;         // size of the adyacent memory segment, in blocks
 	size_t segmentStart; // memory address of the memory segment's start. This
 	                     // is used to check for validity of the block
+	bool isAllocated;
 } Block;
 
 typedef struct BlockList {

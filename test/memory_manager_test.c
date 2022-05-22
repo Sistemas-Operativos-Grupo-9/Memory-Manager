@@ -309,7 +309,7 @@ CuSuite *getMallocSuite() {
 CuSuite *getFreeSuite() {
 	CuSuite *suite = CuSuiteNew();
 	SUITE_ADD_TEST(suite, basicFreeTest);
-	// SUITE_ADD_TEST(suite, testFree_Overflow);
+	SUITE_ADD_TEST(suite, testFree_Overflow);
 	SUITE_ADD_TEST(suite, testFree_InvalidUsage);
 
 	return suite;

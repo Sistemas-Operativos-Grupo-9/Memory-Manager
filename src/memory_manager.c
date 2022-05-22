@@ -65,6 +65,7 @@ void *ourMalloc(size_t bytes) {
 		listRemove(&freeList, blockIndex);
 	}
 
+	header->isAllocated = true;
 	internalMemState.usedMemory += blockGetSize(header) * sizeof(Block);
 	return header + 1;
 }
@@ -73,9 +74,11 @@ void ourFree(void *memPtr) {
 	// TODO: should free throw errors? how?
 	Block *header = ((Block *)memPtr) - 1;
 
-	//! //TODO: if I free the same (valid) pointer many times it takes it as
-	//! valid every time
 	if (!blockIsValid(header)) {
+		//? Error
+		return;
+	}
+	if (!header->isAllocated) {
 		//? Error
 		return;
 	}
@@ -83,6 +86,7 @@ void ourFree(void *memPtr) {
 	//? Maybe coallesce memory
 
 	listAddBlock(&freeList, header);
+	header->isAllocated = false;
 
 	internalMemState.usedMemory -= blockGetSize(header) * sizeof(Block);
 }
