@@ -103,5 +103,8 @@ bool listIsEmpty(BlockList *list) { return list->count == 0; }
 size_t listGetSize(BlockList *list) { return list->count; }
 
 bool blockIsValid(Block *block) {
+	if (block->size < 0) {
+		return false;
+	}
 	return block->segmentStart == (size_t)block + sizeof(Block);
 }

@@ -20,6 +20,12 @@ void memoryManagerInitialize(size_t start, size_t end) {
 	listInitialize(&freeList, listGetSortKey);
 	listAddBlock(&freeList, firstBlock);
 
+	/*
+	TODO:
+	* should the total memory be the heap size or the
+	* effective memory available for use ( ceil(heapBytes /
+	* sizeof(Block)) * sizeof(Block) ) ????
+	*/
 	internalMemState.totalMemory = heapBytes;
 	internalMemState.heapStart = start;
 	internalMemState.usedMemory = 0;
@@ -37,7 +43,7 @@ size_t computeMemoryUnits(size_t bytes) {
 }
 
 void *ourMalloc(size_t bytes) {
-	if (bytes <= 0) { //? // TODO: check == 0 case
+	if (bytes == 0 || bytes > internalMemState.totalMemory) {
 		return NULL;
 	}
 
@@ -64,8 +70,11 @@ void *ourMalloc(size_t bytes) {
 }
 
 void ourFree(void *memPtr) {
+	// TODO: should free throw errors? how?
 	Block *header = ((Block *)memPtr) - 1;
 
+	//! //TODO: if I free the same (valid) pointer many times it takes it as
+	//! valid every time
 	if (!blockIsValid(header)) {
 		//? Error
 		return;
@@ -75,12 +84,11 @@ void ourFree(void *memPtr) {
 
 	listAddBlock(&freeList, header);
 
-	internalMemState.fragmentsAmount++; // no coalescence
 	internalMemState.usedMemory -= blockGetSize(header) * sizeof(Block);
 }
 
 void getMemoryState(MemoryState *mState) {
-	mState->fragmentsAmount = internalMemState.fragmentsAmount;
+	mState->fragmentsAmount = listGetSize(&freeList);
 	mState->heapStart = internalMemState.heapStart;
 	mState->totalMemory = internalMemState.totalMemory;
 	mState->usedMemory = internalMemState.usedMemory;
