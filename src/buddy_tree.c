@@ -11,11 +11,15 @@ BuddyNode newBuddyNode(size_t start, size_t end) {
 	return newNode;
 }
 size_t getMemorySpaceSize(BuddyNode *node) { return node->end - node->start; }
+
 AllocState getNodeState(BuddyNode *node) { return node->allocState; }
+
 void changeNodeState(BuddyNode *node, AllocState state) {
 	node->allocState = state;
 }
+
 size_t getNodeStartAddress(BuddyNode *node) { return node->start; }
+
 size_t getNodeEndAddress(BuddyNode *node) { return node->end; }
 
 BuddyNode *addNodeToTree(BuddyTree *tree, BuddyNode node) {
@@ -31,79 +35,27 @@ void treeInitialize(BuddyTree *tree, size_t start, size_t end) {
 	tree->root = addNodeToTree(tree, newBuddyNode(start, end));
 }
 
-// AllocState computeNodeState(BuddyNode *node) {
-// 	if (node->left == NULL && node->right == NULL) {
-// 		if (getNodeState(node) == FULL) {
-// 			return FULL;
-// 		}
-// 		return FREE;
-// 	}
-// 	if (node->left == NULL || node->right == NULL) {
-// 		return PARTIAL;
-// 	}
-// 	if (computeNodeState(node->left) == FULL &&
-// 	    computeNodeState(node->right) == FULL) {
-// 		return FULL;
-// 	}
-// 	return PARTIAL;
-// }
+bool isLeaf(BuddyNode *node) {
+	return node->left == NULL && node->right == NULL;
+}
 
-// BuddyNode *getNodeByAddress(BuddyTree *tree, size_t address) {
-// 	BuddyNode *current = tree->root;
-// 	while (current != NULL) {
-// 		size_t currentStartAddress = getNodeStartAddress(current);
-// 		size_t currentEndAddress = getNodeEndAddress(current);
-// 		if (address < currentStartAddress || currentEndAddress < address) {
-// 			return NULL;
-// 		}
-// 		if (currentStartAddress == address) {
-// 			if (current->left == NULL) {
-// 				return current;
-// 			}
-// 			current = current->left;
-// 		} else {
-// 			size_t middleAddress =
-// 			    (currentStartAddress + currentEndAddress) / 2;
-// 			if (address < middleAddress) {
-// 				current = current->left;
-// 			} else {
-// 				current = current->right;
-// 			}
-// 		}
-// 	}
-// 	return NULL;
-// }
-// BuddyNode *getNodeBySpace(BuddyTree *tree, size_t requiredSpace) {
-// 	if (requiredSpace > getMemorySpaceSize(tree->root)) {
-// 		return NULL;
-// 	}
-
-// 	BuddyNode *current = tree->root;
-// 	while (current != NULL) {
-// 		size_t currentSpace = getMemorySpaceSize(current);
-// 		if (requiredSpace > currentSpace / 2) {
-// 			return current;
-// 		}
-// 		if (current->left != NULL) {
-// 			current = current->left;
-// 		} else {
-// 			current = current->right;
-// 		}
-// 	}
-// 	return NULL;
-// }
-
-// Look for node descendants and update its state accordingly
+/** Look for node descendants and update its state accordingly
+ *	Leaves' states will not be changed. This means that an updated node will
+ *never have it's state changed to FREE, this can only be done via direct access
+ *(when the memory zone that it represents is freed to the heap)
+ */
 void updateNodeState(BuddyNode *node) {
-	if (node->left == NULL && node->right == NULL) {
-		node->allocState = FREE;
+	if (isLeaf(node)) {
 		return;
 	}
-	if (node->left != NULL && node->right != NULL &&
-	    getNodeState(node->left) == FULL && getNodeState(node->right) == FULL) {
-		return FULL;
+	AllocState leftState = getNodeState(node->left);
+	AllocState rightState = getNodeState(node->right);
+
+	if (leftState == FULL && rightState == FULL) {
+		changeNodeState(node, FULL);
+	} else {
+		changeNodeState(node, PARTIAL);
 	}
-	return PARTIAL;
 }
 
 //! copied from block_list
@@ -126,12 +78,18 @@ size_t getNodeIndex(BuddyTree *tree, BuddyNode *node) {
 	return -1;
 }
 
-void removeNodeFromTree(BuddyTree *tree, BuddyNode *node) {
+bool deleteNode(BuddyTree *tree, BuddyNode *node) {
 	size_t nodeIndex = getNodeIndex(tree, node);
 	if (nodeIndex == -1) {
-		return;
+		return false;
 	}
 	listMoveSlice(tree->nodes, nodeIndex, nodeIndex + 1,
 	              tree->nodeCount - nodeIndex - 1);
 	tree->nodeCount--;
+	return true;
+}
+
+BuddyNode *createNode(BuddyTree *tree, size_t start, size_t end) {
+	BuddyNode newNode = newBuddyNode(start, end);
+	return addNodeToTree(tree, newNode);
 }

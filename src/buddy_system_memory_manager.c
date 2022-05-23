@@ -17,6 +17,11 @@ uint32_t previousPowerOfTwo(uint32_t x) {
 	x |= (x >> 16);
 	return x - (x >> 1);
 }
+// TODO: maybe move to utils/math
+// Range is inclusive
+bool insideRange(size_t value, size_t min, size_t max) {
+	return min <= value && value <= max;
+}
 
 size_t getApropiateHeapSize(size_t start, size_t end) {
 	return previousPowerOfTwo(end - start);
@@ -33,46 +38,47 @@ void memoryManagerInitialize(size_t start, size_t end) {
 
 BuddyNode *malloc_Rec(BuddyNode *node, size_t size) {
 	size_t nodeSize = getMemorySpaceSize(node);
-	if (size > nodeSize || getNodeState(node) == FULL) {
+	AllocState nodeState = getNodeState(node);
+
+	if (size > nodeSize || nodeState == FULL) {
 		return NULL;
 	}
-	if (size > nodeSize / 2) {
+
+	if (size > nodeSize / 2 || nodeSize == MIN_SIZE) {
 		// This node has appropiate size
-		if (node->right != NULL || node->left != NULL ||
-		    getNodeState(node) == FULL) {
+		if (nodeState != FREE) {
 			return NULL;
 		}
+
+		// allocate space
 		changeNodeState(node, FULL);
 		return node;
 	}
-	// Look further down the tree
-	BuddyNode *retNode = NULL;
-	if (node->left == NULL) {
-		// Create node and add it to the tree
-		BuddyNode newNode =
-		    newBuddyNode(getNodeStartAddress(node), getNodeEndAddress(node));
-		retNode = addNodeToTree(&freeTree, newNode);
-		node->left = retNode;
 
-		changeNodeState(retNode, FULL);
-	} else if (node->right == NULL) {
-		// Create node and add it to the tree
-		BuddyNode newNode =
-		    newBuddyNode(getNodeStartAddress(node), getNodeEndAddress(node));
-		retNode = addNodeToTree(&freeTree, newNode);
-		node->right = retNode;
+	BuddyNode *allocatedNode = NULL;
+	if (nodeState == FREE) {
+		size_t startAddress = getNodeStartAddress(node);
+		size_t endAddress = getNodeEndAddress(node);
+		size_t middleAddress = (startAddress + endAddress) / 2;
 
-		changeNodeState(retNode, FULL);
+		node->left = createNode(&freeTree, startAddress, middleAddress);
+		node->right = createNode(&freeTree, middleAddress, endAddress);
+
+		// allocate left
+		changeNodeState(node->left, FULL);
+		changeNodeState(node, PARTIAL);
+		allocatedNode = node->left;
 	} else {
-		retNode = malloc_Rec(node->left, size);
-		if (retNode == NULL) {
-			retNode = malloc_Rec(node->right, size);
+		// nodeState == PARTIAL
+		allocatedNode = malloc_Rec(node->left, size);
+		if (allocatedNode == NULL) {
+			allocatedNode = malloc_Rec(node->right, size);
+		}
+		if (allocatedNode != NULL) {
+			updateNodeState(node);
 		}
 	}
-	if (retNode != NULL) {
-		updateNodeState(node);
-	}
-	return retNode;
+	return allocatedNode;
 }
 
 void *ourMalloc(size_t byteCount) {
@@ -87,71 +93,93 @@ void *ourMalloc(size_t byteCount) {
 	return allocatedSpace->start;
 }
 
-void tryMerge(BuddyNode *node) {
-	BuddyNode *nl = node->left;
-	BuddyNode *nr = node->right;
-	if ((nl != NULL && getNodeState(nl) != FREE) ||
-	    (nr != NULL && getNodeState(nr) != FREE)) {
-		// no merge possible
-		return;
+bool tryMerge(BuddyNode *node) {
+	if (node->left == NULL || node->right == NULL) {
+		return false;
 	}
-	if (nl != NULL) {
-		removeNodeFromTree(&freeTree, nr);
-		node->right = NULL;
+	AllocState leftState = getNodeState(node->left);
+	AllocState rightState = getNodeState(node->right);
+
+	if (leftState == FREE && rightState == FREE) {
+		BuddyNode leftNode = *node->left;
+		BuddyNode rightNode = *node->right;
+
+		bool ok = deleteNode(&freeTree, node->left);
+		if (!ok) {
+			return false;
+		}
+		ok = deleteNode(&freeTree, node->right);
+		if (!ok) {
+			// deletion failed, restore left node
+			node->left = createNode(&freeTree, leftNode.start, leftNode.end);
+			changeNodeState(node->left, getNodeState(&leftNode));
+			return false;
+		}
+		return true;
 	}
-	if (nr != NULL) {
-		removeNodeFromTree(&freeTree, nl);
-		node->left = NULL;
-	}
-	if (nl == NULL && nr == NULL) {
-		changeNodeState(node, FREE);
-	}
+	return false;
 }
 
 bool free_Rec(BuddyNode *node, size_t address) {
 	size_t startAddress = getNodeStartAddress(node);
 	size_t endAddress = getNodeEndAddress(node);
-	if (address < startAddress || endAddress < address) {
+	if (!insideRange(address, startAddress, endAddress)) {
 		return false;
 	}
 
 	if (startAddress == address) {
 		AllocState state = getNodeState(node);
+		if (isLeaf(node) && state == FULL) {
+			// free
+			changeNodeState(node, FREE);
+			return true;
+		}
+
 		if (node->left != NULL) {
-			bool freeResult = free_Rec(node->left, address);
-			tryMerge(node);
-			return freeResult;
+			bool freed = free_Rec(node->left, address);
+			if (freed) {
+				if (tryMerge(node)) {
+					changeNodeState(node, FREE);
+				}
+			}
+			return freed;
 		}
-		if (node->right != NULL) {
-			return false;
-		}
-		if (state == FREE) {
-			return false;
-		}
-		// free
-		changeNodeState(node, FREE);
-		return true;
+		return false;
 	}
+
+	if (isLeaf(node)) {
+		return false;
+	}
+
+	// search in children for the pointed space
 	size_t middleAddress = (startAddress + endAddress) / 2;
-	bool freeResult = false;
+	bool freed = false;
 	if (address < middleAddress) {
-		if (node->left == NULL) {
-			return false;
-		}
-		freeResult = free_Rec(node->left, address);
+		freed = free_Rec(node->left, address);
 	} else {
-		if (node->right == NULL) {
-			return false;
+		freed = free_Rec(node->right, address);
+	}
+	if (freed) {
+		if (tryMerge(node)) {
+			changeNodeState(node, FREE);
 		}
-		freeResult = free_Rec(node->right, address);
 	}
-	if (freeResult) {
-		tryMerge(node);
-	}
-	return freeResult;
+	return freed;
 }
 
 void ourFree(void *memPtr) { free_Rec(freeTree.root, memPtr); }
 
-// TODO
-void getMemoryState(MemoryState *mState);
+size_t getAmountOfFragments_Rec(BuddyNode *node) {
+	if (isLeaf(node)) {
+		return getNodeState(node) == FREE ? 1 : 0;
+	}
+	return getAmountOfFragments_Rec(node->left) +
+	       getAmountOfFragments_Rec(node->right);
+}
+
+void getMemoryState(MemoryState *mState) {
+	mState->totalMemory = _memoryState.totalMemory;
+	mState->heapStart = _memoryState.heapStart;
+	mState->usedMemory = _memoryState.usedMemory;
+	mState->fragmentsAmount = getAmountOfFragments_Rec(freeTree.root);
+}
