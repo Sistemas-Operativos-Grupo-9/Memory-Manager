@@ -1,3 +1,5 @@
+#ifdef BUDDY_MM
+
 #include "buddy_tree.h"
 #include "memory_manager.h"
 
@@ -51,7 +53,7 @@ BuddyNode *malloc_Rec(BuddyNode *node, size_t size) {
 		}
 
 		// allocate space
-		changeNodeState(node, FULL);
+		setNodeState(node, FULL);
 		return node;
 	}
 
@@ -65,18 +67,16 @@ BuddyNode *malloc_Rec(BuddyNode *node, size_t size) {
 		node->right = createNode(&freeTree, middleAddress, endAddress);
 
 		// allocate left
-		changeNodeState(node->left, FULL);
-		changeNodeState(node, PARTIAL);
-		allocatedNode = node->left;
+		allocatedNode = malloc_Rec(node->left, size);
 	} else {
 		// nodeState == PARTIAL
 		allocatedNode = malloc_Rec(node->left, size);
 		if (allocatedNode == NULL) {
 			allocatedNode = malloc_Rec(node->right, size);
 		}
-		if (allocatedNode != NULL) {
-			updateNodeState(node);
-		}
+	}
+	if (allocatedNode != NULL) {
+		updateNodeState(node);
 	}
 	return allocatedNode;
 }
@@ -89,8 +89,7 @@ void *ourMalloc(size_t byteCount) {
 	if (allocatedSpace == NULL) {
 		return NULL;
 	}
-	_memoryState.usedMemory += getMemorySpaceSize(allocatedSpace);
-	return allocatedSpace->start;
+	return (void *)allocatedSpace->start;
 }
 
 bool tryMerge(BuddyNode *node) {
@@ -112,9 +111,11 @@ bool tryMerge(BuddyNode *node) {
 		if (!ok) {
 			// deletion failed, restore left node
 			node->left = createNode(&freeTree, leftNode.start, leftNode.end);
-			changeNodeState(node->left, getNodeState(&leftNode));
+			setNodeState(node->left, getNodeState(&leftNode));
 			return false;
 		}
+		node->left = NULL;
+		node->right = NULL;
 		return true;
 	}
 	return false;
@@ -131,15 +132,16 @@ bool free_Rec(BuddyNode *node, size_t address) {
 		AllocState state = getNodeState(node);
 		if (isLeaf(node) && state == FULL) {
 			// free
-			changeNodeState(node, FREE);
+			setNodeState(node, FREE);
 			return true;
 		}
 
 		if (node->left != NULL) {
 			bool freed = free_Rec(node->left, address);
 			if (freed) {
+				updateNodeState(node);
 				if (tryMerge(node)) {
-					changeNodeState(node, FREE);
+					setNodeState(node, FREE);
 				}
 			}
 			return freed;
@@ -160,26 +162,44 @@ bool free_Rec(BuddyNode *node, size_t address) {
 		freed = free_Rec(node->right, address);
 	}
 	if (freed) {
+		updateNodeState(node);
 		if (tryMerge(node)) {
-			changeNodeState(node, FREE);
+			setNodeState(node, FREE);
 		}
 	}
 	return freed;
 }
 
-void ourFree(void *memPtr) { free_Rec(freeTree.root, memPtr); }
+void ourFree(void *memPtr) { free_Rec(freeTree.root, (size_t)memPtr); }
 
 size_t getAmountOfFragments_Rec(BuddyNode *node) {
 	if (isLeaf(node)) {
-		return getNodeState(node) == FREE ? 1 : 0;
+		if (getNodeState(node) == FREE) {
+			return 1;
+		}
+		return 0;
 	}
 	return getAmountOfFragments_Rec(node->left) +
 	       getAmountOfFragments_Rec(node->right);
 }
 
+size_t getAmountOfAllocatedSpace_Rec(BuddyNode *node) {
+	AllocState nodeState = getNodeState(node);
+	if (nodeState == FREE) {
+		return 0;
+	}
+	if (nodeState == FULL) {
+		return getMemorySpaceSize(node);
+	}
+	return getAmountOfAllocatedSpace_Rec(node->left) +
+	       getAmountOfAllocatedSpace_Rec(node->right);
+}
+
 void getMemoryState(MemoryState *mState) {
 	mState->totalMemory = _memoryState.totalMemory;
 	mState->heapStart = _memoryState.heapStart;
-	mState->usedMemory = _memoryState.usedMemory;
+	mState->usedMemory = getAmountOfAllocatedSpace_Rec(freeTree.root);
 	mState->fragmentsAmount = getAmountOfFragments_Rec(freeTree.root);
 }
+
+#endif

@@ -15,4 +15,4 @@ void testMalloc_InvalidUsage(CuTest *tc);
 CuSuite *getMallocSuite();
 CuSuite *getFreeSuite();
 CuSuite *getMemStateSuite();
-CuSuite *getIntegratedSuite();
+CuSuite *getMemoryManagerIntegratedSuite();

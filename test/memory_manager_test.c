@@ -1,13 +1,13 @@
+#include "memory_manager_test.h"
 #include "memory_manager.h"
+#include "test_utils.h"
+
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 
-#include "memory_manager_test.h"
-
-#define DEFAULT_HEAP_SIZE 1001
+#define DEFAULT_HEAP_SIZE 1024
 
 // Basic Test Template:
 // ---------------------------------
@@ -21,42 +21,17 @@
 // 	free(heap);
 // }
 
-// Utils
+// Local Utils
 // -----------------------------------------------------------------------
-static bool seeded = false;
-size_t getUniform(size_t max) {
-	if (!seeded) {
-		srand(time(0));
-		seeded = true;
-	}
-	return max * ((double)rand() / RAND_MAX);
-}
 
 typedef struct requestStruct {
 	void *address;
 	size_t size;
 } Request;
 
-int memcheck(void *start, int value, size_t size) {
-	int *p = (int *)start;
-	size_t i;
-
-	for (i = 0; i < size; i++, p++)
-		if (*p != value)
-			return 0;
-
-	return 1;
-}
-
 // Tests
 // -----------------------------------------------------------------------
-/* TODO:
- *	It's difficult to calculate how many free memory is left to be allocated
- *  because of the method that we use to allocate it (allocate multiples of
- *	blocks in order to keep the memory aligned). So, is this OK? or should we
- *	change the implementation to a more transparent one.
- */
-void integratedTest(CuTest *tc) {
+void mm_integratedTest(CuTest *tc) {
 	size_t heapSize = DEFAULT_HEAP_SIZE;
 	void *heap = malloc(heapSize);
 	size_t heapStart = (size_t)heap;
@@ -67,10 +42,10 @@ void integratedTest(CuTest *tc) {
 	Request requests[maxRequests];
 	size_t requestCounter = 0;
 	size_t requestedBytes = 0;
-	size_t maxMemoryBytes = heapSize;
+	size_t maxMemoryBytes = heapSize * 0.5;
 
 	// Request as many blocks as we can
-	while (requestCounter < maxRequests && maxMemoryBytes > requestedBytes) {
+	while (requestCounter < maxRequests && requestedBytes < maxMemoryBytes) {
 		requests[requestCounter].size =
 		    getUniform(maxMemoryBytes - requestedBytes - 1) + 1;
 		requests[requestCounter].address =
@@ -140,7 +115,7 @@ void basicMallocTest(CuTest *tc) {
 	CuAssertStrEquals(tc, msg, ptr1);
 
 	// malloc a few more times
-	int const PTRS_AMOUNT = DEFAULT_HEAP_SIZE / mallocSize - 5;
+	int const PTRS_AMOUNT = memState.totalMemory / mallocSize - 5;
 	void *pointers[PTRS_AMOUNT];
 	for (int i = 0; i < PTRS_AMOUNT; i++) {
 		pointers[i] = ourMalloc(10);
@@ -166,19 +141,26 @@ void basicFreeTest(CuTest *tc) {
 	memoryManagerInitialize(heapStart, heapEnd);
 
 	MemoryState memoryState;
+	size_t mallocSize;
+	size_t totalMemory;
 
 	int *number = ourMalloc(sizeof(int));
 	getMemoryState(&memoryState);
-	CuAssertTrue(tc, memoryState.usedMemory > 0);
+	mallocSize = memoryState.usedMemory;
+	totalMemory = memoryState.totalMemory;
+	CuAssertTrue(tc, mallocSize > 0);
+
 	ourFree(number);
 	getMemoryState(&memoryState);
 	CuAssertIntEquals(tc, 0, memoryState.usedMemory);
 
-	int mallocAmount = 10;
+	int mallocAmount = totalMemory / mallocSize - 1;
 	int *ptrs[mallocAmount];
 	for (size_t i = 0; i < mallocAmount; i++) {
 		ptrs[i] = ourMalloc(sizeof(int));
+		CuAssertPtrNotNull(tc, ptrs[i]);
 	}
+
 	getMemoryState(&memoryState);
 	CuAssertTrue(tc, memoryState.usedMemory > 0);
 	for (size_t i = 0; i < mallocAmount; i++) {
@@ -292,15 +274,17 @@ void testMalloc_AllocatedSize(CuTest *tc) {
 	ptrs[mallocCount++] = ourMalloc(1);
 	getMemoryState(&memoryState);
 	int mallocSize = memoryState.usedMemory;
+	size_t totalMemory = memoryState.totalMemory;
 	CuAssertTrue(tc, mallocSize > 0);
 
 	// allocate memory until heap is full
-	for (; mallocCount < heapSize / mallocSize; mallocCount++) {
+	for (; mallocCount < totalMemory / mallocSize; mallocCount++) {
 		ptrs[mallocCount] = ourMalloc(1);
+		CuAssertPtrNotNull(tc, ptrs[mallocCount]);
 	}
 
 	getMemoryState(&memoryState);
-	CuAssertTrue(tc, memoryState.usedMemory >= heapSize - mallocSize);
+	CuAssertTrue(tc, memoryState.usedMemory >= totalMemory - mallocSize);
 
 	void *fullPtr = ourMalloc(1);
 	CuAssertPtrEquals(tc, NULL, fullPtr);
@@ -379,9 +363,9 @@ void testMalloc_InvalidUsage(CuTest *tc) {
 
 // Suites
 // -----------------------------------------------------------------------
-CuSuite *getIntegratedSuite() {
+CuSuite *getMemoryManagerIntegratedSuite() {
 	CuSuite *suite = CuSuiteNew();
-	SUITE_ADD_TEST(suite, integratedTest);
+	SUITE_ADD_TEST(suite, mm_integratedTest);
 	return suite;
 }
 

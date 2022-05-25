@@ -1,3 +1,5 @@
+#ifdef OUR_MM
+
 #include "memory_manager.h"
 #include "block_list.h"
 
@@ -97,3 +99,5 @@ void getMemoryState(MemoryState *mState) {
 	mState->totalMemory = internalMemState.totalMemory;
 	mState->usedMemory = internalMemState.usedMemory;
 }
+
+#endif

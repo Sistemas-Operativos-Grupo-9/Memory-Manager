@@ -16,7 +16,7 @@
 // 	}
 // }
 
-// Utils
+// Local Utils
 // -----------------------------------------------------------------------
 Block *newBlock(size_t size) {
 	Block *block = malloc(sizeof(Block) * size);

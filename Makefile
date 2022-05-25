@@ -8,6 +8,8 @@ SRC_OBJ=$(SRC_FILES:src/%.c=$(BUILD_DIR)/%.o)
 TEST_OBJ=$(TEST_FILES:test/%.c=$(BUILD_DIR)/test/%.o)
 CUTEST_OBJ=$(CUTEST_FILES:cutest/%.c=$(BUILD_DIR)/cutest/%.o)
 
+MEM_MANAGER=BUDDY_MM
+
 CFLAGS=-Iinclude -Icutest -g
 
 $(BUILD_DIR)/libmemory_manager.a: $(SRC_OBJ)
@@ -32,11 +34,11 @@ $(BUILD_DIR)/cutest/%.o: cutest/%.c
 
 $(BUILD_DIR)/test/%.o: test/%.c
 	mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -c -o $@ $^
+	$(CC) -D$(MEM_MANAGER) $(CFLAGS) -c -o $@ $^
 
 $(BUILD_DIR)/%.o: src/%.c
 	mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -nostdlib -c -o $@ $^
+	$(CC) -D$(MEM_MANAGER) $(CFLAGS) -nostdlib -c -o $@ $^
 
 
 

@@ -1,10 +1,11 @@
+
 #include "buddy_tree.h"
 
 BuddyNode newBuddyNode(size_t start, size_t end) {
 	BuddyNode newNode;
 	newNode.start = start;
 	newNode.end = end;
-	newNode.allocState = FULL;
+	newNode.allocState = FREE;
 	newNode.left = NULL;
 	newNode.right = NULL;
 
@@ -14,7 +15,7 @@ size_t getMemorySpaceSize(BuddyNode *node) { return node->end - node->start; }
 
 AllocState getNodeState(BuddyNode *node) { return node->allocState; }
 
-void changeNodeState(BuddyNode *node, AllocState state) {
+void setNodeState(BuddyNode *node, AllocState state) {
 	node->allocState = state;
 }
 
@@ -26,24 +27,19 @@ BuddyNode *addNodeToTree(BuddyTree *tree, BuddyNode node) {
 	if (tree->nodeCount == MAX_NODES) {
 		return NULL;
 	}
-	tree->nodes[tree->nodeCount++] = node;
-	return &tree->nodes[tree->nodeCount - 1];
+	tree->nodes[tree->nodeCount] = node;
+	return &tree->nodes[tree->nodeCount++];
 }
 
 void treeInitialize(BuddyTree *tree, size_t start, size_t end) {
 	tree->nodeCount = 0;
-	tree->root = addNodeToTree(tree, newBuddyNode(start, end));
+	tree->root = createNode(tree, start, end);
 }
 
 bool isLeaf(BuddyNode *node) {
 	return node->left == NULL && node->right == NULL;
 }
 
-/** Look for node descendants and update its state accordingly
- *	Leaves' states will not be changed. This means that an updated node will
- *never have it's state changed to FREE, this can only be done via direct access
- *(when the memory zone that it represents is freed to the heap)
- */
 void updateNodeState(BuddyNode *node) {
 	if (isLeaf(node)) {
 		return;
@@ -52,15 +48,15 @@ void updateNodeState(BuddyNode *node) {
 	AllocState rightState = getNodeState(node->right);
 
 	if (leftState == FULL && rightState == FULL) {
-		changeNodeState(node, FULL);
+		setNodeState(node, FULL);
 	} else {
-		changeNodeState(node, PARTIAL);
+		setNodeState(node, PARTIAL);
 	}
 }
 
 //! copied from block_list
-void listMoveSlice(BuddyNode list[MAX_NODES], size_t dest, size_t source,
-                   size_t size) {
+void buddy_listMoveSlice(BuddyNode list[MAX_NODES], size_t dest, size_t source,
+                         size_t size) {
 	if (source > dest)
 		for (int i = 0; i < size; i++)
 			list[dest + i] = list[source + i];
@@ -78,13 +74,27 @@ size_t getNodeIndex(BuddyTree *tree, BuddyNode *node) {
 	return -1;
 }
 
+/**
+ * TODO:
+ * change node management inside structure:
+ * - delete a node by setting it to {0}
+ * 		- check if a node is deleted by asking if start == NULL && end == NULL
+ * - add new nodes in free spaces (holes), instead of at the end
+ * - add a function to delete all children from a node, by deleting them from
+ *   the structure and setting left and right to NULL
+ *
+ * all of this is to fix the current problem in which when deleting a node, some
+ * other nodes inside the tree's list are shifted from their original positions,
+ * but the pointers to those nodes on their parents cannot be updated.
+ */
+
 bool deleteNode(BuddyTree *tree, BuddyNode *node) {
 	size_t nodeIndex = getNodeIndex(tree, node);
 	if (nodeIndex == -1) {
 		return false;
 	}
-	listMoveSlice(tree->nodes, nodeIndex, nodeIndex + 1,
-	              tree->nodeCount - nodeIndex - 1);
+	buddy_listMoveSlice(tree->nodes, nodeIndex, nodeIndex + 1,
+	                    tree->nodeCount - nodeIndex - 1);
 	tree->nodeCount--;
 	return true;
 }

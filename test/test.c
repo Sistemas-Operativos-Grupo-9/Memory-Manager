@@ -1,6 +1,7 @@
 #include "CuTest.h"
 #include <stdio.h>
 
+#include "buddy_tree_test.h"
 #include "memory_manager.h"
 #include "memory_manager_test.h"
 #include "test_list.h"
@@ -10,10 +11,11 @@ void runSuite(CuSuite *suiteToRun, char *name);
 void runAllTests() {
 	printf("Initializing tests\n\n");
 	runSuite(getListSuite(), "List Suite");
+	runSuite(getBuddyTreeSuite(), "Buddy Tree Suite");
 	runSuite(getMallocSuite(), "Malloc Suite");
 	runSuite(getFreeSuite(), "Free suite");
 	runSuite(getMemStateSuite(), "Memory State Suite");
-	runSuite(getIntegratedSuite(), "Integrated Suite");
+	runSuite(getMemoryManagerIntegratedSuite(), "MM Integrated Suite");
 }
 
 void runSuite(CuSuite *suiteToRun, char *name) {
