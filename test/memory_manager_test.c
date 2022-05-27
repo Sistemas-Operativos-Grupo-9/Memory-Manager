@@ -179,22 +179,40 @@ void basicMemStateTest(CuTest *tc) {
 	size_t heapEnd = (size_t)heap + heapSize;
 	memoryManagerInitialize(heapStart, heapEnd);
 
+	size_t totalMemory;
+	size_t minAllocSize;
+
 	MemoryState memoryState;
 	getMemoryState(&memoryState);
 
-	CuAssertIntEquals(tc, heapSize, memoryState.totalMemory);
+	totalMemory = memoryState.totalMemory;
+
+	// check initial state
+	CuAssertTrue(tc, 0 < totalMemory && totalMemory <= heapSize);
 	CuAssertIntEquals(tc, 1, memoryState.fragmentsAmount);
 	CuAssertIntEquals(tc, 0, memoryState.usedMemory);
 	CuAssertPtrEquals(tc, (void *)heapStart, (void *)memoryState.heapStart);
 
-	int mallocAmount = 20;
+	// get minimun alloc size and check state after one malloc and one free
+	void *p = ourMalloc(1);
+	getMemoryState(&memoryState);
+	minAllocSize = memoryState.usedMemory;
+	CuAssertTrue(tc, minAllocSize > 0);
+	ourFree(p);
+	getMemoryState(&memoryState);
+	CuAssertIntEquals(tc, 0, memoryState.usedMemory);
+
+	// our memory manager does no have coallescence, but the Buddy mm does
+#ifdef OUR_MM
+	// amount of fragments = amount of frees + 1 (<- unused memory block)
+	CuAssertIntEquals(tc, 1 + 1, memoryState.fragmentsAmount);
+#else
+	CuAssertIntEquals(tc, 1, memoryState.fragmentsAmount);
+#endif
+	// do a random amount of mallocs
+	int mallocAmount = getUniform(totalMemory / minAllocSize - 1 - 3) + 3;
 	int *ptrs[mallocAmount];
 	int allocatedPtrsCount = 0;
-
-	ptrs[allocatedPtrsCount++] = ourMalloc(1);
-	getMemoryState(&memoryState);
-	int minAllocSize = memoryState.usedMemory;
-	CuAssertTrue(tc, minAllocSize > 0);
 
 	for (; allocatedPtrsCount < mallocAmount; allocatedPtrsCount++) {
 		ptrs[allocatedPtrsCount] = ourMalloc(1);
@@ -204,16 +222,14 @@ void basicMemStateTest(CuTest *tc) {
 	CuAssertIntEquals(tc, minAllocSize * allocatedPtrsCount,
 	                  memoryState.usedMemory);
 
-	CuAssertIntEquals(tc, 1, memoryState.fragmentsAmount);
-
+	// check the effects of one free
 	ourFree(ptrs[allocatedPtrsCount - 1]);
 	allocatedPtrsCount--;
 	getMemoryState(&memoryState);
 	CuAssertIntEquals(tc, minAllocSize * allocatedPtrsCount,
 	                  memoryState.usedMemory);
 
-	CuAssertIntEquals(tc, 2, memoryState.fragmentsAmount);
-
+	// free the remaining memory
 	for (; allocatedPtrsCount > 0; allocatedPtrsCount--) {
 		ourFree(ptrs[allocatedPtrsCount - 1]);
 	}
@@ -221,9 +237,13 @@ void basicMemStateTest(CuTest *tc) {
 	getMemoryState(&memoryState);
 
 	CuAssertIntEquals(tc, 0, memoryState.usedMemory);
+
+#ifdef OUR_MM
 	// amount of fragments = amount of frees + 1 (<- unused memory block)
 	CuAssertIntEquals(tc, mallocAmount + 1, memoryState.fragmentsAmount);
-
+#else
+	CuAssertIntEquals(tc, 1, memoryState.fragmentsAmount);
+#endif
 	CuAssertIntEquals(tc, heapSize, memoryState.totalMemory);
 	CuAssertPtrEquals(tc, (void *)heapStart, (void *)memoryState.heapStart);
 
@@ -238,6 +258,10 @@ void testFree_Overflow(CuTest *tc) {
 	memoryManagerInitialize(heapStart, heapEnd);
 
 	MemoryState memoryState;
+	size_t totalMemory;
+	getMemoryState(&memoryState);
+	totalMemory = memoryState.totalMemory;
+
 	int *ptr = ourMalloc(1);
 
 	for (size_t i = 0; i < 10; i++) {
@@ -245,14 +269,21 @@ void testFree_Overflow(CuTest *tc) {
 		ourFree(ptr);
 	}
 	for (size_t i = 0; i < 50; i++) {
-		ourFree((void *)(heapStart + i * heapSize / 50));
+		ourFree((void *)(heapStart + i * totalMemory / 50));
 	}
 
 	getMemoryState(&memoryState);
 
 	CuAssertIntEquals(tc, heapSize, memoryState.totalMemory);
+
+	// our memory manager does no have coallescence, but the Buddy mm does
+#ifdef OUR_MM
 	// amount of fragments = 1 valid free + 1 block of unused space
 	CuAssertIntEquals(tc, 2, memoryState.fragmentsAmount);
+#else
+	CuAssertIntEquals(tc, 1, memoryState.fragmentsAmount);
+#endif
+
 	CuAssertIntEquals(tc, 0, memoryState.usedMemory);
 	CuAssertPtrEquals(tc, (void *)heapStart, (void *)memoryState.heapStart);
 

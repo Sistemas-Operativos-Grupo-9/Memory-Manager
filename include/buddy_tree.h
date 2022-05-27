@@ -44,7 +44,7 @@ bool isLeaf(BuddyNode *node);
 void treeInitialize(BuddyTree *tree, size_t start, size_t end);
 
 //! decisión de diseño:
-// no hay función para agregar (o quitarle) nodos al árbol porque todos los
+// no hay función para agregar nodos al árbol porque todos los
 // nodos que se agregan son añadidos directamente (modificando el valor de
 // node->left). Esto es para hacer más rápido y directo el proceso de añadir un
 // nodo, ya que de otra forma debería añadirse navegando recursivamente desde la
@@ -57,4 +57,7 @@ BuddyNode *createNode(BuddyTree *tree, size_t start, size_t end);
 
 // Deletes node from the tree's internal list, it does not remove it from the
 // tree data structure
-bool deleteNode(BuddyTree *tree, BuddyNode *node);
+void deleteNode(BuddyTree *tree, BuddyNode *node);
+
+// Deletes both children from node and sets them to NULL
+void deleteChildren(BuddyTree *tree, BuddyNode *node);

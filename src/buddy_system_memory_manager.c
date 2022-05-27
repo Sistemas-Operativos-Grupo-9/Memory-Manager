@@ -100,22 +100,8 @@ bool tryMerge(BuddyNode *node) {
 	AllocState rightState = getNodeState(node->right);
 
 	if (leftState == FREE && rightState == FREE) {
-		BuddyNode leftNode = *node->left;
-		BuddyNode rightNode = *node->right;
-
-		bool ok = deleteNode(&freeTree, node->left);
-		if (!ok) {
-			return false;
-		}
-		ok = deleteNode(&freeTree, node->right);
-		if (!ok) {
-			// deletion failed, restore left node
-			node->left = createNode(&freeTree, leftNode.start, leftNode.end);
-			setNodeState(node->left, getNodeState(&leftNode));
-			return false;
-		}
-		node->left = NULL;
-		node->right = NULL;
+		deleteChildren(&freeTree, node);
+		setNodeState(node, FREE);
 		return true;
 	}
 	return false;
@@ -140,9 +126,7 @@ bool free_Rec(BuddyNode *node, size_t address) {
 			bool freed = free_Rec(node->left, address);
 			if (freed) {
 				updateNodeState(node);
-				if (tryMerge(node)) {
-					setNodeState(node, FREE);
-				}
+				tryMerge(node);
 			}
 			return freed;
 		}
@@ -163,9 +147,7 @@ bool free_Rec(BuddyNode *node, size_t address) {
 	}
 	if (freed) {
 		updateNodeState(node);
-		if (tryMerge(node)) {
-			setNodeState(node, FREE);
-		}
+		tryMerge(node);
 	}
 	return freed;
 }

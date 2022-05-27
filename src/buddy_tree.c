@@ -1,4 +1,3 @@
-
 #include "buddy_tree.h"
 
 BuddyNode newBuddyNode(size_t start, size_t end) {
@@ -23,15 +22,28 @@ size_t getNodeStartAddress(BuddyNode *node) { return node->start; }
 
 size_t getNodeEndAddress(BuddyNode *node) { return node->end; }
 
+// Returns true if the pointed space of the nodes array is available for writing
+// a new node
+bool spaceIsAvailable(BuddyNode *space) {
+	// Technically I should check if every field is 0, but this check is enough
+	return space->start == 0 && space->end == 0;
+}
+
 BuddyNode *addNodeToTree(BuddyTree *tree, BuddyNode node) {
-	if (tree->nodeCount == MAX_NODES) {
-		return NULL;
+	for (size_t i = 0; i < MAX_NODES; i++) {
+		if (spaceIsAvailable(tree->nodes + i)) {
+			tree->nodes[i] = node; // copy the given node
+			tree->nodeCount++;
+			return &tree->nodes[i];
+		}
 	}
-	tree->nodes[tree->nodeCount] = node;
-	return &tree->nodes[tree->nodeCount++];
+	return NULL;
 }
 
 void treeInitialize(BuddyTree *tree, size_t start, size_t end) {
+	for (size_t i = 0; i < MAX_NODES; i++) {
+		tree->nodes[i] = (BuddyNode){0};
+	}
 	tree->nodeCount = 0;
 	tree->root = createNode(tree, start, end);
 }
@@ -74,29 +86,25 @@ size_t getNodeIndex(BuddyTree *tree, BuddyNode *node) {
 	return -1;
 }
 
-/**
- * TODO:
- * change node management inside structure:
- * - delete a node by setting it to {0}
- * 		- check if a node is deleted by asking if start == NULL && end == NULL
- * - add new nodes in free spaces (holes), instead of at the end
- * - add a function to delete all children from a node, by deleting them from
- *   the structure and setting left and right to NULL
- *
- * all of this is to fix the current problem in which when deleting a node, some
- * other nodes inside the tree's list are shifted from their original positions,
- * but the pointers to those nodes on their parents cannot be updated.
- */
+void deleteNode(BuddyTree *tree, BuddyNode *node) {
+	node->start = 0;
+	node->end = 0;
+	node->allocState = 0;
+	node->left = 0;
+	node->right = 0;
 
-bool deleteNode(BuddyTree *tree, BuddyNode *node) {
-	size_t nodeIndex = getNodeIndex(tree, node);
-	if (nodeIndex == -1) {
-		return false;
-	}
-	buddy_listMoveSlice(tree->nodes, nodeIndex, nodeIndex + 1,
-	                    tree->nodeCount - nodeIndex - 1);
 	tree->nodeCount--;
-	return true;
+}
+
+void deleteChildren(BuddyTree *tree, BuddyNode *node) {
+	if (node->left != NULL) {
+		deleteNode(tree, node->left);
+		node->left = NULL;
+	}
+	if (node->right != NULL) {
+		deleteNode(tree, node->right);
+		node->right = NULL;
+	}
 }
 
 BuddyNode *createNode(BuddyTree *tree, size_t start, size_t end) {

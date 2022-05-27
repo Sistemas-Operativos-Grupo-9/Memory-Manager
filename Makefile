@@ -8,7 +8,8 @@ SRC_OBJ=$(SRC_FILES:src/%.c=$(BUILD_DIR)/%.o)
 TEST_OBJ=$(TEST_FILES:test/%.c=$(BUILD_DIR)/test/%.o)
 CUTEST_OBJ=$(CUTEST_FILES:cutest/%.c=$(BUILD_DIR)/cutest/%.o)
 
-MEM_MANAGER=BUDDY_MM
+# MEM_MANAGER=BUDDY_MM
+MEM_MANAGER=OUR_MM
 
 CFLAGS=-Iinclude -Icutest -g
 

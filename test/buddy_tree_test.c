@@ -104,8 +104,7 @@ void testDeleteNode(CuTest *tc) {
 
 	size_t nodesToDelete = getUniform(nodesToCreate - 1) + 1;
 	for (size_t i = 0; i < nodesToDelete; i++) {
-		bool deleteDone = deleteNode(treePtr, createdNodes[i]);
-		CuAssertTrue(tc, deleteDone);
+		deleteNode(treePtr, createdNodes[i]);
 	}
 
 	CuAssertIntEquals(tc, nodesToCreate + 1 - nodesToDelete,
