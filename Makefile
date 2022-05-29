@@ -15,7 +15,7 @@ KERNEL_CFLAGS=-fno-exceptions -ffreestanding -nostdlib \
 MEM_MANAGER=BUDDY_MM
 #MEM_MANAGER=OUR_MM
 
-CFLAGS=-Iinclude -Icutest -g
+CFLAGS=-Iinclude -Icutest -g -std=c99
 
 $(BUILD_DIR)/libmemory_manager.a: $(SRC_OBJ)
 	ar rcs $@ $^
