@@ -7,9 +7,13 @@ CUTEST_FILES=cutest/CuTest.c
 SRC_OBJ=$(SRC_FILES:src/%.c=$(BUILD_DIR)/%.o)
 TEST_OBJ=$(TEST_FILES:test/%.c=$(BUILD_DIR)/test/%.o)
 CUTEST_OBJ=$(CUTEST_FILES:cutest/%.c=$(BUILD_DIR)/cutest/%.o)
+KERNEL_CFLAGS=-fno-exceptions -ffreestanding -nostdlib \
+		 -fno-common -mno-red-zone -mno-mmx -fno-builtin-malloc \
+		 -fno-builtin-free -fno-builtin-realloc -fno-stack-check \
+		 -fno-stack-protector
 
-# MEM_MANAGER=BUDDY_MM
-MEM_MANAGER=OUR_MM
+MEM_MANAGER=BUDDY_MM
+#MEM_MANAGER=OUR_MM
 
 CFLAGS=-Iinclude -Icutest -g
 
@@ -39,7 +43,7 @@ $(BUILD_DIR)/test/%.o: test/%.c
 
 $(BUILD_DIR)/%.o: src/%.c
 	mkdir -p $(dir $@)
-	$(CC) -D$(MEM_MANAGER) $(CFLAGS) -nostdlib -c -o $@ $^
+	$(CC) -D$(MEM_MANAGER) $(CFLAGS) $(KERNEL_CFLAGS) -c -o $@ $^
 
 
 
